@@ -14,10 +14,18 @@ COLLECTION_NAME = "facturas"
 # ---------------------------------------------------------------- PostgreSQL
 class PgVectorStore:
     def __init__(self, dsn: str):
-        from psycopg_pool import ConnectionPool
         from pgvector.psycopg import register_vector
+        from psycopg import Connection
+        from psycopg_pool import ConnectionPool
 
-        self.pool = ConnectionPool(dsn, min_size=1, max_size=5, open=True)
+        def _configure(conn: Connection):
+            conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            conn.commit()
+            register_vector(conn)
+
+        self.pool = ConnectionPool(
+            dsn, min_size=1, max_size=5, open=True, configure=_configure
+        )
         self._init_schema()
 
     def _init_schema(self):
@@ -69,16 +77,19 @@ class PgVectorStore:
     def query(self, embedding, top_k=5):
         from pgvector import Vector
 
+        vec = Vector(embedding)
         with self.pool.connection() as conn:
-            rows = conn.execute(
-                f"""
-                SELECT source, chunk, content, embedding <=> %s AS dist
-                FROM {COLLECTION_NAME}
-                ORDER BY embedding <=> %s
-                LIMIT %s
-                """,
-                (Vector(embedding), Vector(embedding), top_k),
-            ).fetchall()
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT source, chunk, content, embedding <=> %s AS dist
+                    FROM {COLLECTION_NAME}
+                    ORDER BY embedding <=> %s
+                    LIMIT %s
+                    """,
+                    (vec, vec, top_k),
+                )
+                rows = cur.fetchall()
         return {
             "documents": [[r[2] for r in rows]],
             "metadatas": [[{"source": r[0], "chunk": r[1]} for r in rows]],
