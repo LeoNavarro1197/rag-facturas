@@ -14,22 +14,19 @@ COLLECTION_NAME = "facturas"
 # ---------------------------------------------------------------- PostgreSQL
 class PgVectorStore:
     def __init__(self, dsn: str):
-        from pgvector.psycopg import register_vector
-        from psycopg import Connection
-        from psycopg_pool import ConnectionPool
-
-        def _configure(conn: Connection):
-            conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            conn.commit()
-            register_vector(conn)
-
-        self.pool = ConnectionPool(
-            dsn, min_size=1, max_size=5, open=True, configure=_configure
-        )
+        self.dsn = dsn
         self._init_schema()
 
+    def _connect(self):
+        import psycopg
+        from pgvector.psycopg import register_vector
+
+        conn = psycopg.connect(self.dsn, autocommit=True)
+        register_vector(conn)
+        return conn
+
     def _init_schema(self):
-        with self.pool.connection() as conn:
+        with self._connect() as conn:
             conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
             conn.execute(
                 f"""
@@ -51,7 +48,7 @@ class PgVectorStore:
     def add_documents(self, ids, embeddings, documents, metadatas):
         from pgvector import Vector
 
-        with self.pool.connection() as conn:
+        with self._connect() as conn:
             with conn.cursor() as cur:
                 for id_, emb, doc, meta in zip(ids, embeddings, documents, metadatas):
                     cur.execute(
@@ -78,7 +75,7 @@ class PgVectorStore:
         from pgvector import Vector
 
         vec = Vector(embedding)
-        with self.pool.connection() as conn:
+        with self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
@@ -97,11 +94,11 @@ class PgVectorStore:
         }
 
     def count(self) -> int:
-        with self.pool.connection() as conn:
+        with self._connect() as conn:
             return conn.execute(f"SELECT COUNT(*) FROM {COLLECTION_NAME}").fetchone()[0]
 
     def reset(self):
-        with self.pool.connection() as conn:
+        with self._connect() as conn:
             conn.execute(f"TRUNCATE {COLLECTION_NAME}")
 
 
