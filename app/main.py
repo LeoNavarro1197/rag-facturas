@@ -90,6 +90,22 @@ def api_estado():
     return {"documentos": count(), "facturas": facturas, "protegida": bool(APP_KEY)}
 
 
+@app.get("/api/diagnostico")
+def api_diagnostico():
+    from .config import DATABASE_URL, EMBEDDING_DIM, EMBEDDING_MODEL, LLM_MODEL
+    keys = ["GEMINI_API_KEY", "DATABASE_URL", "EMBEDDING_DIM", "LLM_MODEL", "APP_KEY", "PORT"]
+    entorno = {k: (bool(os.getenv(k)) if k == "GEMINI_API_KEY" else os.getenv(k)) for k in keys}
+    return {
+        "entorno": entorno,
+        "config": {
+            "DATABASE_URL_set": bool(DATABASE_URL),
+            "EMBEDDING_DIM": EMBEDDING_DIM,
+            "EMBEDDING_MODEL": EMBEDDING_MODEL,
+            "LLM_MODEL": LLM_MODEL,
+        },
+    }
+
+
 @app.get("/api/documentos")
 def api_documentos(clave: str = ""):
     _check_key(clave)
