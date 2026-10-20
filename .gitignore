@@ -1,0 +1,21 @@
+# Secretos - NUNCA subir a git
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Datos sensibles (facturas)
+data/pdfs/*.pdf
+
+# Índice vectorial local (se regenera)
+data/index/
+data/index/*.bin
+
+# Editores / SO
+.vscode/
+Thumbs.db
+
+# Logs
+*.log
