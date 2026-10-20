@@ -1,6 +1,6 @@
 from google import genai
 
-from .config import EMBEDDING_MODEL, LLM_MODEL, get_api_key
+from .config import EMBEDDING_DIM, EMBEDDING_MODEL, LLM_MODEL, get_api_key
 
 _client = None
 
@@ -16,7 +16,11 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
     client = get_client()
-    result = client.models.embed_content(model=EMBEDDING_MODEL, contents=texts)
+    result = client.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=texts,
+        config={"output_dimensionality": EMBEDDING_DIM},
+    )
     return [e.values for e in result.embeddings]
 
 
